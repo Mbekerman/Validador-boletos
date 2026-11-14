@@ -61,7 +61,7 @@ ATUAL_CLIENT_ID="$(gcloud run services describe "$SERVICE" --region "$REGION" \
 CLIENT_ID="${ATUAL_CLIENT_ID:-pendente}"
 
 echo "Publicando (o build leva uns 3 a 5 minutos)..."
-gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated --quiet \
+gcloud run deploy "$SERVICE" --source . --region "$REGION" --no-invoker-iam-check --quiet \
   --set-env-vars "ALLOWED_DOMAIN=bkm.com.br,ASAAS_BASE_URL=https://api.asaas.com/v3,APP_ENV=production,GOOGLE_CLIENT_ID=${CLIENT_ID},APP_URL=https://pendente" \
   --set-secrets "ASAAS_API_KEY=asaas-api-key:latest,DATABASE_URL=database-url:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest"
 

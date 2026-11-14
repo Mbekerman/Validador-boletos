@@ -14,13 +14,14 @@ function secretKey(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
-export type Session = { email: string; name?: string };
+export type Session = { email: string; name?: string; picture?: string };
 
 export type GoogleClaims = {
   email?: string;
   email_verified?: boolean | string;
   hd?: string;
   name?: string;
+  picture?: string;
 };
 
 // Regra de acesso, aplicada no servidor sobre o id_token já verificado.
@@ -55,7 +56,7 @@ export async function verifyGoogleIdToken(idToken: string, nonce: string): Promi
 }
 
 export async function createSessionToken(session: Session): Promise<string> {
-  return new SignJWT({ email: session.email, name: session.name })
+  return new SignJWT({ email: session.email, name: session.name, picture: session.picture })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
@@ -69,7 +70,11 @@ export async function readSessionToken(token: string | undefined): Promise<Sessi
     const email = String(payload.email || "");
     // Revalida o domínio a cada request: se ALLOWED_DOMAIN mudar, sessões antigas caem.
     if (!email.toLowerCase().endsWith(`@${allowedDomain()}`)) return null;
-    return { email, name: payload.name ? String(payload.name) : undefined };
+    return {
+      email,
+      name: payload.name ? String(payload.name) : undefined,
+      picture: typeof payload.picture === "string" && payload.picture.startsWith("https://") ? payload.picture : undefined,
+    };
   } catch {
     return null;
   }

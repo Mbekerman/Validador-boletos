@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   const check = isAllowed(claims);
   if (!check.ok) return fail(check.reason);
 
-  const token = await createSessionToken({ email: claims.email!.toLowerCase(), name: claims.name });
+  const token = await createSessionToken({ email: claims.email!.toLowerCase(), name: claims.name, picture: claims.picture });
   const res = NextResponse.redirect(`${appUrl()}/`);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   res.cookies.delete({ name: "vb_oauth", path: "/api/auth" });

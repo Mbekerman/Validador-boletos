@@ -29,6 +29,14 @@ O login usa Google OAuth (authorization code com PKCE, `state` e `nonce`) e não
 
 O parâmetro `hd` na URL do Google serve só como dica de interface. A sessão fica num cookie httpOnly assinado (HS256) e dura 12 horas.
 
+## Interface
+
+Segue as [Diretrizes de design BKM](https://claude.ai/artifact/9X3yJh6UijhD3SjsLvwzHz): Material 3 do Google sobre a marca BKM, Google Sans Flex, quadros contornados, botões em cápsula, chips tonais, tema claro, escuro ou automático (no menu do avatar). As tabelas ordenam pelo clique no título e viram lista no celular. O logo e o símbolo vêm do [Design System BKM](https://claude.ai/artifact/N76hgnKi7LrCSpCusmwFCL), em `public/marca/` e `app/icon.svg`. Com `APP_ENV` diferente de `production`, aparece o selo "Desenvolvimento" e `[DEV]` no título da aba.
+
+## Banco
+
+Neon, projeto `validador-boletos` (`cold-brook-50206564`, aws-us-east-2), na org `org-round-hat-68493592`. A tabela `boletos` já foi criada. Para recriá-la em outro banco, use `npm run db:migrate`.
+
 ## Rodar local
 
 ```bash

@@ -50,15 +50,15 @@ Testes: `npm test`.
 
 ## Deploy (Cloud Run)
 
-```bash
-# segredos no Secret Manager (uma vez)
-printf %s "$ASAAS_API_KEY" | gcloud secrets create asaas-api-key --data-file=-
-# ... o mesmo para google-client-secret, session-secret, database-url
+No Cloud Shell (console.cloud.google.com, ícone de terminal no topo), que já vem com o gcloud logado:
 
-gcloud run deploy validador-boletos --source . --region southamerica-east1 \
-  --allow-unauthenticated \
-  --set-env-vars APP_URL=https://SEU-DOMINIO,GOOGLE_CLIENT_ID=...,ALLOWED_DOMAIN=bkm.com.br,ASAAS_BASE_URL=https://api.asaas.com/v3 \
-  --set-secrets ASAAS_API_KEY=asaas-api-key:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,SESSION_SECRET=session-secret:latest,DATABASE_URL=database-url:latest
+```bash
+git clone https://github.com/Mbekerman/validador-boletos && cd validador-boletos
+bash scripts/deploy-cloudshell.sh
 ```
 
-Cadastre `https://SEU-DOMINIO/api/auth/callback` como URI de redirecionamento no cliente OAuth. O `--allow-unauthenticated` é necessário porque quem controla o acesso é o login do próprio app.
+O script ativa as APIs, pede a chave do Asaas e a connection string do Neon (sem mostrar na tela) e grava as duas no Secret Manager. Também gera o `SESSION_SECRET`, dá à conta do Cloud Run acesso aos segredos, publica em `southamerica-east1` e mostra a URL. Depois, crie o cliente OAuth no Console (tela de permissão do tipo **Interno**, cliente "Aplicativo da Web", redirecionamento `URL/api/auth/callback`) e rode `bash scripts/configurar-google.sh`.
+
+Para atualizar depois de uma mudança no código: `git pull && bash scripts/deploy-cloudshell.sh`. Os segredos que já existem são mantidos.
+
+O `--allow-unauthenticated` é necessário porque quem controla o acesso é o login do próprio app.

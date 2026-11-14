@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState, useTransition } f
 import { consultar, reconsultar, type ConsultaState } from "./actions";
 import type { BoletoRow } from "@/lib/db";
 import { formatarLinha } from "@/lib/linha-digitavel";
+import { formatarBanco, formatarDocumento } from "@/lib/formatos";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = new Intl.DateTimeFormat("pt-BR", {
@@ -177,7 +178,7 @@ function valorLiberado(b: BoletoRow, col: string): string | number | null {
     case "pessoa": return (b.usuario_nome || b.usuario).toLowerCase();
     case "recebedor": return b.beneficiario_nome;
     case "doc": return b.beneficiario_documento;
-    case "banco": return b.banco;
+    case "banco": return formatarBanco(b.banco);
     case "valor": return b.valor === null ? null : Number(b.valor);
     case "venc": return b.vencimento;
     case "consulta": return b.ultima_consulta_em;
@@ -217,8 +218,8 @@ function TabelaLiberados({ linhas, verTodos }: { linhas: BoletoRow[]; verTodos: 
                     <div className="principal">{b.beneficiario_nome || <NaoInformado />}</div>
                     {b.empresa && b.empresa !== b.beneficiario_nome && <div className="sub">{b.empresa}</div>}
                   </td>
-                  <td data-rotulo="CPF/CNPJ" className="nowrap">{b.beneficiario_documento || <NaoInformado />}</td>
-                  <td data-rotulo="Banco">{b.banco || <NaoInformado />}</td>
+                  <td data-rotulo="CPF/CNPJ" className="nowrap">{formatarDocumento(b.beneficiario_documento) || <NaoInformado />}</td>
+                  <td data-rotulo="Banco">{formatarBanco(b.banco) || <NaoInformado />}</td>
                   <td data-rotulo="Valor" className="num">{b.valor !== null ? brl.format(Number(b.valor)) : <NaoInformado />}</td>
                   <td data-rotulo="Vencimento" className="nowrap">
                     {fmtData(b.vencimento) || <NaoInformado />}

@@ -50,6 +50,11 @@ for s in asaas-api-key database-url session-secret google-client-secret; do
     --role=roles/secretmanager.secretAccessor >/dev/null
 done
 
+# Em projeto novo, o build do Cloud Run usa a conta de serviço padrão, que precisa
+# ler o código enviado, gravar a imagem e escrever logs.
+gcloud projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:$SA" \
+  --role=roles/cloudbuild.builds.builder --condition=None --quiet >/dev/null
+
 # Mantém GOOGLE_CLIENT_ID e APP_URL se o serviço já existir.
 ATUAL_CLIENT_ID="$(gcloud run services describe "$SERVICE" --region "$REGION" \
   --format='value(spec.template.spec.containers[0].env.filter(name=GOOGLE_CLIENT_ID).extract(value).flatten())' 2>/dev/null || true)"

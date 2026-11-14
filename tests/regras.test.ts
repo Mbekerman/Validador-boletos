@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyResponse } from "../lib/asaas";
-import { isAllowed } from "../lib/auth";
+import { isAdmin, isAllowed } from "../lib/auth";
 
 describe("isAllowed (domínio)", () => {
   const d = "bkm.com.br";
@@ -37,5 +37,19 @@ describe("classifyResponse (Asaas)", () => {
   it("401 e 500 => erro", () => {
     expect(classifyResponse(401, { errors: [{ code: "invalid_access_token" }] }).kind).toBe("erro");
     expect(classifyResponse(500, null).kind).toBe("erro");
+  });
+});
+
+describe("isAdmin", () => {
+  it("só os dois administradores padrão veem tudo", () => {
+    expect(isAdmin("moises@bkm.com.br")).toBe(true);
+    expect(isAdmin("Rafael.Gava@BKM.com.br")).toBe(true);
+    expect(isAdmin("ana@bkm.com.br")).toBe(false);
+    expect(isAdmin("moises@bkm.com.br.evil.com")).toBe(false);
+    expect(isAdmin("")).toBe(false);
+  });
+  it("respeita a lista configurada", () => {
+    expect(isAdmin("ana@bkm.com.br", " ana@bkm.com.br , ")).toBe(true);
+    expect(isAdmin("moises@bkm.com.br", "ana@bkm.com.br")).toBe(false);
   });
 });

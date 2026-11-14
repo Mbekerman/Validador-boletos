@@ -8,6 +8,7 @@ import {
   sessionCookieOptions,
   verifyGoogleIdToken,
 } from "@/lib/auth";
+import { registrarUsuario } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,15 @@ export async function GET(req: NextRequest) {
   const check = isAllowed(claims);
   if (!check.ok) return fail(check.reason);
 
-  const token = await createSessionToken({ email: claims.email!.toLowerCase(), name: claims.name, picture: claims.picture });
+  const email = claims.email!.toLowerCase();
+  const picture = typeof claims.picture === "string" && claims.picture.startsWith("https://") ? claims.picture : undefined;
+  try {
+    await registrarUsuario(email, claims.name, picture);
+  } catch (e) {
+    // Sem isso só falta o avatar na visão dos administradores; não vale bloquear o login.
+    console.error("registrarUsuario falhou", e);
+  }
+  const token = await createSessionToken({ email, name: claims.name, picture });
   const res = NextResponse.redirect(`${appUrl()}/`);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   res.cookies.delete({ name: "vb_oauth", path: "/api/auth" });

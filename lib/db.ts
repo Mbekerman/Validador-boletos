@@ -19,21 +19,40 @@ export type BoletoRow = {
   vencimento: string | null;
   vencido: boolean | null;
   motivo: string | null;
-  consultado_por: string;
+  /** Dono da consulta: quem consultou o boleto pela primeira vez. Nunca muda. */
+  usuario: string;
+  usuario_nome: string | null;
+  usuario_foto: string | null;
+  /** Quem fez a consulta mais recente (o dono ou um administrador). */
+  ultima_consulta_por: string;
   consultas: number;
   criado_em: string;
   ultima_consulta_em: string;
 };
 
-export async function salvarLiberado(linha: string, data: SimulateResponse, email: string) {
+/** Guarda nome e foto do Google para mostrar o avatar de quem consultou. */
+export async function registrarUsuario(email: string, nome: string | undefined, foto: string | undefined) {
+  await sql()`
+    INSERT INTO usuarios (email, nome, foto)
+    VALUES (${email}, ${nome ?? null}, ${foto ?? null})
+    ON CONFLICT (email) DO UPDATE SET
+      nome = EXCLUDED.nome,
+      foto = EXCLUDED.foto,
+      ultimo_login_em = now()`;
+}
+
+// Cada pessoa tem a própria linha por boleto: (linha_digitavel, usuario) é único.
+// `dono` é o usuário da linha; `por` é quem está consultando agora.
+
+export async function salvarLiberado(linha: string, data: SimulateResponse, dono: string, por: string) {
   const b = data.bankSlipInfo ?? {};
   await sql()`
-    INSERT INTO boletos (linha_digitavel, status, beneficiario_nome, beneficiario_documento, empresa, banco,
-                         valor, vencimento, vencido, motivo, resposta, consultado_por)
-    VALUES (${linha}, 'liberado', ${b.beneficiaryName ?? null}, ${b.beneficiaryCpfCnpj ?? null},
+    INSERT INTO boletos (linha_digitavel, usuario, status, beneficiario_nome, beneficiario_documento, empresa, banco,
+                         valor, vencimento, vencido, motivo, resposta, ultima_consulta_por)
+    VALUES (${linha}, ${dono}, 'liberado', ${b.beneficiaryName ?? null}, ${b.beneficiaryCpfCnpj ?? null},
             ${b.companyName ?? null}, ${b.bank ?? null}, ${b.value ?? null}, ${b.dueDate ?? null},
-            ${b.isOverdue ?? null}, NULL, ${JSON.stringify(data)}, ${email})
-    ON CONFLICT (linha_digitavel) DO UPDATE SET
+            ${b.isOverdue ?? null}, NULL, ${JSON.stringify(data)}, ${por})
+    ON CONFLICT (linha_digitavel, usuario) DO UPDATE SET
       status = 'liberado',
       beneficiario_nome = EXCLUDED.beneficiario_nome,
       beneficiario_documento = EXCLUDED.beneficiario_documento,
@@ -44,19 +63,19 @@ export async function salvarLiberado(linha: string, data: SimulateResponse, emai
       vencido = EXCLUDED.vencido,
       motivo = NULL,
       resposta = EXCLUDED.resposta,
-      consultado_por = EXCLUDED.consultado_por,
+      ultima_consulta_por = EXCLUDED.ultima_consulta_por,
       consultas = boletos.consultas + 1,
       ultima_consulta_em = now()`;
 }
 
-export async function salvarNaoLiberado(linha: string, motivo: string, raw: unknown, email: string) {
+export async function salvarNaoLiberado(linha: string, motivo: string, raw: unknown, dono: string, por: string) {
   await sql()`
-    INSERT INTO boletos (linha_digitavel, status, motivo, resposta, consultado_por)
-    VALUES (${linha}, 'nao_liberado', ${motivo}, ${JSON.stringify(raw)}, ${email})
-    ON CONFLICT (linha_digitavel) DO UPDATE SET
+    INSERT INTO boletos (linha_digitavel, usuario, status, motivo, resposta, ultima_consulta_por)
+    VALUES (${linha}, ${dono}, 'nao_liberado', ${motivo}, ${JSON.stringify(raw)}, ${por})
+    ON CONFLICT (linha_digitavel, usuario) DO UPDATE SET
       motivo = EXCLUDED.motivo,
       resposta = EXCLUDED.resposta,
-      consultado_por = EXCLUDED.consultado_por,
+      ultima_consulta_por = EXCLUDED.ultima_consulta_por,
       consultas = boletos.consultas + 1,
       ultima_consulta_em = now()
     -- Um boleto já liberado não volta a "não liberado" por uma recusa posterior
@@ -64,17 +83,24 @@ export async function salvarNaoLiberado(linha: string, motivo: string, raw: unkn
     WHERE boletos.status = 'nao_liberado'`;
 }
 
-export async function buscarLinha(id: number): Promise<string | null> {
-  const rows = (await sql()`SELECT linha_digitavel FROM boletos WHERE id = ${id}`) as { linha_digitavel: string }[];
-  return rows[0]?.linha_digitavel ?? null;
+export async function buscarBoleto(id: number): Promise<{ linha_digitavel: string; usuario: string } | null> {
+  const rows = (await sql()`SELECT linha_digitavel, usuario FROM boletos WHERE id = ${id}`) as {
+    linha_digitavel: string;
+    usuario: string;
+  }[];
+  return rows[0] ?? null;
 }
 
-export async function listarBoletos(): Promise<BoletoRow[]> {
+/** Administrador vê todas as consultas; os demais, só as próprias. */
+export async function listarBoletos(email: string, verTodos: boolean): Promise<BoletoRow[]> {
   return (await sql()`
-    SELECT id, linha_digitavel, status, beneficiario_nome, beneficiario_documento, empresa, banco,
-           valor::text AS valor, to_char(vencimento, 'YYYY-MM-DD') AS vencimento, vencido, motivo,
-           consultado_por, consultas, criado_em::text, ultima_consulta_em::text
-    FROM boletos
-    ORDER BY ultima_consulta_em DESC
-    LIMIT 500`) as BoletoRow[];
+    SELECT b.id, b.linha_digitavel, b.status, b.beneficiario_nome, b.beneficiario_documento, b.empresa, b.banco,
+           b.valor::text AS valor, to_char(b.vencimento, 'YYYY-MM-DD') AS vencimento, b.vencido, b.motivo,
+           b.usuario, u.nome AS usuario_nome, u.foto AS usuario_foto, b.ultima_consulta_por,
+           b.consultas, b.criado_em::text, b.ultima_consulta_em::text
+    FROM boletos b
+    LEFT JOIN usuarios u ON u.email = b.usuario
+    WHERE ${verTodos} OR b.usuario = ${email}
+    ORDER BY b.ultima_consulta_em DESC
+    LIMIT 1000`) as BoletoRow[];
 }

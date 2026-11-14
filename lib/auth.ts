@@ -14,6 +14,14 @@ function secretKey(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
+// Quem vê as consultas de todos. Pode ser trocado pela variável ADMIN_EMAILS (separados por vírgula).
+const ADMINS_PADRAO = "moises@bkm.com.br,rafael.gava@bkm.com.br";
+
+export function isAdmin(email: string, lista = process.env.ADMIN_EMAILS || ADMINS_PADRAO): boolean {
+  const e = email.trim().toLowerCase();
+  return lista.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).includes(e);
+}
+
 export type Session = { email: string; name?: string; picture?: string };
 
 export type GoogleClaims = {

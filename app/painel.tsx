@@ -20,6 +20,18 @@ function NaoInformado() {
   return <span className="nao-informado">Não informado</span>;
 }
 
+function Pessoa({ b }: { b: BoletoRow }) {
+  const nome = b.usuario_nome || b.usuario.split("@")[0];
+  return (
+    <div className="pessoa" title={b.usuario}>
+      <span className="avatar-mini" aria-hidden="true">
+        {b.usuario_foto ? <img src={b.usuario_foto} alt="" referrerPolicy="no-referrer" /> : nome.charAt(0).toUpperCase()}
+      </span>
+      <span className="pessoa-nome">{nome}</span>
+    </div>
+  );
+}
+
 // ---------- Aviso (snackbar) ----------
 
 type Aviso = { texto: string; erro?: boolean; id: number };
@@ -90,7 +102,7 @@ function Th({ col, children, ordem, clicar, num }: {
 
 const inicial: ConsultaState = { tipo: null, mensagem: "" };
 
-export function Painel({ boletos }: { boletos: BoletoRow[] }) {
+export function Painel({ boletos, verTodos }: { boletos: BoletoRow[]; verTodos: boolean }) {
   const [estado, acao, enviando] = useActionState(consultar, inicial);
   const { aviso, mostrar } = useAviso();
   const formRef = useRef<HTMLFormElement>(null);
@@ -148,8 +160,8 @@ export function Painel({ boletos }: { boletos: BoletoRow[] }) {
         </form>
       </section>
 
-      <TabelaLiberados linhas={liberados} />
-      <TabelaPendentes linhas={pendentes} mostrar={mostrar} />
+      <TabelaLiberados linhas={liberados} verTodos={verTodos} />
+      <TabelaPendentes linhas={pendentes} verTodos={verTodos} mostrar={mostrar} />
 
       {aviso && (
         <div key={aviso.id} className={`snackbar${aviso.erro ? " snackbar-erro" : ""}`} role="status">
@@ -162,6 +174,7 @@ export function Painel({ boletos }: { boletos: BoletoRow[] }) {
 
 function valorLiberado(b: BoletoRow, col: string): string | number | null {
   switch (col) {
+    case "pessoa": return (b.usuario_nome || b.usuario).toLowerCase();
     case "recebedor": return b.beneficiario_nome;
     case "doc": return b.beneficiario_documento;
     case "banco": return b.banco;
@@ -172,7 +185,7 @@ function valorLiberado(b: BoletoRow, col: string): string | number | null {
   }
 }
 
-function TabelaLiberados({ linhas }: { linhas: BoletoRow[] }) {
+function TabelaLiberados({ linhas, verTodos }: { linhas: BoletoRow[]; verTodos: boolean }) {
   const { ordenadas, ordem, clicar } = useOrdem(linhas, valorLiberado);
   return (
     <section className="quadro">
@@ -193,6 +206,7 @@ function TabelaLiberados({ linhas }: { linhas: BoletoRow[] }) {
                 <Th col="valor" ordem={ordem} clicar={clicar} num>Valor</Th>
                 <Th col="venc" ordem={ordem} clicar={clicar}>Vencimento</Th>
                 <th>Linha digitável</th>
+                {verTodos && <Th col="pessoa" ordem={ordem} clicar={clicar}>Consultado por</Th>}
                 <Th col="consulta" ordem={ordem} clicar={clicar}>Consultado em</Th>
               </tr>
             </thead>
@@ -211,10 +225,8 @@ function TabelaLiberados({ linhas }: { linhas: BoletoRow[] }) {
                     {b.vencido && <span className="chip chip-atencao">Vencido</span>}
                   </td>
                   <td data-rotulo="Linha digitável"><code className="linha">{formatarLinha(b.linha_digitavel)}</code></td>
-                  <td data-rotulo="Consultado em">
-                    <div className="nowrap">{dataHora.format(new Date(b.ultima_consulta_em))}</div>
-                    <div className="sub">{b.consultado_por}</div>
-                  </td>
+                  {verTodos && <td data-rotulo="Consultado por"><Pessoa b={b} /></td>}
+                  <td data-rotulo="Consultado em" className="nowrap">{dataHora.format(new Date(b.ultima_consulta_em))}</td>
                 </tr>
               ))}
             </tbody>
@@ -227,6 +239,7 @@ function TabelaLiberados({ linhas }: { linhas: BoletoRow[] }) {
 
 function valorPendente(b: BoletoRow, col: string): string | number | null {
   switch (col) {
+    case "pessoa": return (b.usuario_nome || b.usuario).toLowerCase();
     case "motivo": return b.motivo;
     case "consulta": return b.ultima_consulta_em;
     case "n": return b.consultas;
@@ -234,7 +247,9 @@ function valorPendente(b: BoletoRow, col: string): string | number | null {
   }
 }
 
-function TabelaPendentes({ linhas, mostrar }: { linhas: BoletoRow[]; mostrar: (t: string, erro?: boolean) => void }) {
+function TabelaPendentes({ linhas, verTodos, mostrar }: {
+  linhas: BoletoRow[]; verTodos: boolean; mostrar: (t: string, erro?: boolean) => void;
+}) {
   const { ordenadas, ordem, clicar } = useOrdem(linhas, valorPendente);
   const [emAndamento, setEmAndamento] = useState<number | null>(null);
   const [, startTransition] = useTransition();
@@ -265,6 +280,7 @@ function TabelaPendentes({ linhas, mostrar }: { linhas: BoletoRow[]; mostrar: (t
               <tr>
                 <th>Linha digitável</th>
                 <Th col="motivo" ordem={ordem} clicar={clicar}>Resposta do Asaas</Th>
+                {verTodos && <Th col="pessoa" ordem={ordem} clicar={clicar}>Consultado por</Th>}
                 <Th col="consulta" ordem={ordem} clicar={clicar}>Última consulta</Th>
                 <Th col="n" ordem={ordem} clicar={clicar} num>Consultas</Th>
                 <th><span className="sr">Ações</span></th>
@@ -275,10 +291,8 @@ function TabelaPendentes({ linhas, mostrar }: { linhas: BoletoRow[]; mostrar: (t
                 <tr key={b.id}>
                   <td data-rotulo="Linha digitável"><code className="linha">{formatarLinha(b.linha_digitavel)}</code></td>
                   <td data-rotulo="Resposta do Asaas">{b.motivo || <NaoInformado />}</td>
-                  <td data-rotulo="Última consulta">
-                    <div className="nowrap">{dataHora.format(new Date(b.ultima_consulta_em))}</div>
-                    <div className="sub">{b.consultado_por}</div>
-                  </td>
+                  {verTodos && <td data-rotulo="Consultado por"><Pessoa b={b} /></td>}
+                  <td data-rotulo="Última consulta" className="nowrap">{dataHora.format(new Date(b.ultima_consulta_em))}</td>
                   <td data-rotulo="Consultas" className="num">{b.consultas}</td>
                   <td className="acoes">
                     <button

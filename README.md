@@ -61,4 +61,4 @@ O script ativa as APIs, pede a chave do Asaas e a connection string do Neon (sem
 
 Para atualizar depois de uma mudança no código: `git pull && bash scripts/deploy-cloudshell.sh`. Os segredos que já existem são mantidos.
 
-O `--allow-unauthenticated` é necessário porque quem controla o acesso é o login do próprio app.
+O `--no-invoker-iam-check` deixa a URL aberta, porque a organização bkm.com.br bloqueia `allUsers`. Quem controla o acesso é o login do próprio app.

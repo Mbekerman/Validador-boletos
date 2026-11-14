@@ -1,0 +1,31 @@
+{
+  "name": "validador-boletos",
+  "version": "1.0.0",
+  "description": "Validador de boletos via API Asaas",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node scripts/migrate.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.1",
+    "jose": "^6.2.17",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "5.9",
+    "vitest": "^5.1.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

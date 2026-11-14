@@ -1,0 +1,50 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/auth";
+import { simulateBill } from "@/lib/asaas";
+import { validarLinhaDigitavel } from "@/lib/linha-digitavel";
+import { buscarLinha, salvarLiberado, salvarNaoLiberado } from "@/lib/db";
+
+export type ConsultaState = {
+  tipo: "liberado" | "nao_liberado" | "erro" | null;
+  mensagem: string;
+};
+
+async function consultarLinha(linha: string, email: string): Promise<ConsultaState> {
+  const outcome = await simulateBill(linha);
+  if (outcome.kind === "liberado") {
+    await salvarLiberado(linha, outcome.data, email);
+    const nome = outcome.data.bankSlipInfo?.beneficiaryName || "recebedor não informado";
+    return { tipo: "liberado", mensagem: `Boleto liberado para pagamento. Recebedor: ${nome}.` };
+  }
+  if (outcome.kind === "nao_liberado") {
+    await salvarNaoLiberado(linha, outcome.motivo, outcome.raw, email);
+    return { tipo: "nao_liberado", mensagem: `Boleto ainda não liberado. Asaas: ${outcome.motivo}` };
+  }
+  // Erro de sistema: não grava nada, para não marcar como "não liberado" por falha nossa.
+  return { tipo: "erro", mensagem: outcome.motivo };
+}
+
+export async function consultar(_prev: ConsultaState, form: FormData): Promise<ConsultaState> {
+  const session = await getSession();
+  if (!session) return { tipo: "erro", mensagem: "Sessão expirada. Entre de novo." };
+
+  const v = validarLinhaDigitavel(String(form.get("linha") || ""));
+  if (!v.ok) return { tipo: "erro", mensagem: v.error };
+
+  const result = await consultarLinha(v.digits, session.email);
+  revalidatePath("/");
+  return result;
+}
+
+export async function reconsultar(form: FormData): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  const id = Number(form.get("id"));
+  if (!Number.isInteger(id) || id <= 0) return;
+  const linha = await buscarLinha(id);
+  if (!linha) return;
+  await consultarLinha(linha, session.email);
+  revalidatePath("/");
+}

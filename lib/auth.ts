@@ -1,7 +1,9 @@
 import { SignJWT, jwtVerify, createRemoteJWKSet } from "jose";
 import { cookies } from "next/headers";
 
-export const SESSION_COOKIE = "vb_session";
+// O Firebase Hosting só repassa ao Cloud Run o cookie chamado "__session"; qualquer outro é descartado.
+// Por isso o mesmo cookie guarda, em momentos diferentes, o estado do login com o Google e a sessão.
+export const SESSION_COOKIE = "__session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12h
 
 export function allowedDomain(): string {
@@ -64,7 +66,7 @@ export async function verifyGoogleIdToken(idToken: string, nonce: string): Promi
 }
 
 export async function createSessionToken(session: Session): Promise<string> {
-  return new SignJWT({ email: session.email, name: session.name, picture: session.picture })
+  return new SignJWT({ t: "sessao", email: session.email, name: session.name, picture: session.picture })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
@@ -75,6 +77,7 @@ export async function readSessionToken(token: string | undefined): Promise<Sessi
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
+    if (payload.t !== "sessao") return null; // ex.: estado do login em andamento
     const email = String(payload.email || "");
     // Revalida o domínio a cada request: se ALLOWED_DOMAIN mudar, sessões antigas caem.
     if (!email.toLowerCase().endsWith(`@${allowedDomain()}`)) return null;
@@ -83,6 +86,30 @@ export async function readSessionToken(token: string | undefined): Promise<Sessi
       name: payload.name ? String(payload.name) : undefined,
       picture: typeof payload.picture === "string" && payload.picture.startsWith("https://") ? payload.picture : undefined,
     };
+  } catch {
+    return null;
+  }
+}
+
+export type OAuthState = { state: string; nonce: string; verifier: string };
+
+/** Estado do login com o Google (state, nonce, PKCE), assinado e válido por 10 minutos. */
+export async function createOAuthToken(o: OAuthState): Promise<string> {
+  return new SignJWT({ t: "oauth", ...o })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("600s")
+    .sign(secretKey());
+}
+
+export async function readOAuthToken(token: string | undefined): Promise<OAuthState | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
+    if (payload.t !== "oauth") return null;
+    const { state, nonce, verifier } = payload as Record<string, unknown>;
+    if (typeof state !== "string" || typeof nonce !== "string" || typeof verifier !== "string") return null;
+    return { state, nonce, verifier };
   } catch {
     return null;
   }

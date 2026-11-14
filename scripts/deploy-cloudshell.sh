@@ -59,13 +59,17 @@ gcloud projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:$SA" 
 ATUAL_CLIENT_ID="$(gcloud run services describe "$SERVICE" --region "$REGION" \
   --format='value(spec.template.spec.containers[0].env.filter(name=GOOGLE_CLIENT_ID).extract(value).flatten())' 2>/dev/null || true)"
 CLIENT_ID="${ATUAL_CLIENT_ID:-pendente}"
+ATUAL_APP_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" \
+  --format='value(spec.template.spec.containers[0].env.filter(name=APP_URL).extract(value).flatten())' 2>/dev/null || true)"
 
 echo "Publicando (o build leva uns 3 a 5 minutos)..."
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --no-invoker-iam-check --quiet \
   --set-env-vars "ALLOWED_DOMAIN=bkm.com.br,ASAAS_BASE_URL=https://api.asaas.com/v3,APP_ENV=production,GOOGLE_CLIENT_ID=${CLIENT_ID},APP_URL=https://pendente" \
   --set-secrets "ASAAS_API_KEY=asaas-api-key:latest,DATABASE_URL=database-url:latest,SESSION_SECRET=session-secret:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest"
 
-URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+# Mantém o endereço público já configurado (ex.: https://validaboleto.web.app); senão usa o do Cloud Run.
+if [ -n "$ATUAL_APP_URL" ] && [ "$ATUAL_APP_URL" != "https://pendente" ]; then URL="$ATUAL_APP_URL"
+else URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"; fi
 gcloud run services update "$SERVICE" --region "$REGION" --update-env-vars "APP_URL=${URL}" >/dev/null
 
 echo

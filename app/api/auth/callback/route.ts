@@ -5,6 +5,7 @@ import {
   appUrl,
   createSessionToken,
   isAllowed,
+  readOAuthToken,
   sessionCookieOptions,
   verifyGoogleIdToken,
 } from "@/lib/auth";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 function fail(reason: string) {
   const res = NextResponse.redirect(`${appUrl()}/login?erro=${encodeURIComponent(reason)}`);
-  res.cookies.delete({ name: "vb_oauth", path: "/api/auth" });
+  res.cookies.delete({ name: SESSION_COOKIE, path: "/" });
   return res;
 }
 
@@ -27,15 +28,8 @@ function sameString(a: string, b: string) {
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
-  const raw = req.cookies.get("vb_oauth")?.value;
-  if (!code || !state || !raw) return fail("Login expirado. Tente de novo.");
-
-  let saved: { state: string; nonce: string; verifier: string };
-  try {
-    saved = JSON.parse(raw);
-  } catch {
-    return fail("Login inválido. Tente de novo.");
-  }
+  const saved = await readOAuthToken(req.cookies.get(SESSION_COOKIE)?.value);
+  if (!code || !state || !saved) return fail("Login expirado. Tente de novo.");
   if (!sameString(saved.state, state)) return fail("Login inválido. Tente de novo.");
 
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -76,6 +70,5 @@ export async function GET(req: NextRequest) {
   const token = await createSessionToken({ email, name: claims.name, picture });
   const res = NextResponse.redirect(`${appUrl()}/`);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
-  res.cookies.delete({ name: "vb_oauth", path: "/api/auth" });
   return res;
 }

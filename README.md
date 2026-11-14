@@ -62,3 +62,7 @@ O script ativa as APIs, pede a chave do Asaas e a connection string do Neon (sem
 Para atualizar depois de uma mudança no código: `git pull && bash scripts/deploy-cloudshell.sh`. Os segredos que já existem são mantidos.
 
 O `--no-invoker-iam-check` deixa a URL aberta, porque a organização bkm.com.br bloqueia `allUsers`. Quem controla o acesso é o login do próprio app.
+
+## Endereço amigável (validaboleto.web.app)
+
+O Firebase Hosting fica na frente do Cloud Run, porque o Cloud Run não aceita domínio próprio em southamerica-east1. Ele só repassa o cookie `__session`, por isso o login usa esse nome. Para configurar, rode `bash scripts/configurar-firebase.sh` no Cloud Shell. O `deploy-cloudshell.sh` mantém o `APP_URL` que já estiver configurado.

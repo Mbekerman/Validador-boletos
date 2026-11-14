@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomBytes, createHash } from "node:crypto";
-import { allowedDomain, appUrl } from "@/lib/auth";
+import { SESSION_COOKIE, allowedDomain, appUrl, createOAuthToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +26,11 @@ export async function GET() {
   });
 
   const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-  res.cookies.set("vb_oauth", JSON.stringify({ state, nonce, verifier }), {
+  res.cookies.set(SESSION_COOKIE, await createOAuthToken({ state, nonce, verifier }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/api/auth",
+    path: "/",
     maxAge: 600,
   });
   return res;

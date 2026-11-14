@@ -89,10 +89,11 @@ h1, h2 { font-weight: 400; margin: 0; }
 .barra {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  height: 64px;
+  min-height: 64px;
   /* Mesmas margens do conteúdo (.pagina, até 1280 px): logo alinhado ao título. */
   padding: 0 max(16px, env(safe-area-inset-right), calc((100% - 1280px) / 2 + 16px)) 0 max(16px, env(safe-area-inset-left), calc((100% - 1280px) / 2 + 16px));
-  padding-top: env(safe-area-inset-top);
+  padding-top: calc(24px + env(safe-area-inset-top));
+  padding-bottom: 8px;
   background: var(--m-surface);
 }
 .barra-marca { display: flex; align-items: center; gap: 12px; }
